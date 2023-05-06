@@ -1,31 +1,44 @@
 ARG UBUNTU_VERSION=jammy
-ARG FROM_IMAGE=ubuntu:$UBUNTU_VERSION
-ARG OVERLAY_WS=/opt/rnz/overlay_ws
-# ARG TEST_PATH=capra-ros-local-planner/capra-ros-local-planner/test
-
+ARG ROS_VERSION=humble-ros-core
+ARG FROM_IMAGE=ros:$ROS_VERSION
+ARG OVERLAY_WS=/app
 
 # MAKE SOME BASIC MODIFICATION TO THE BASE IMAGE
 FROM $FROM_IMAGE AS dependencies_setter
 
+# Set ignition variable for simulation
+ENV IGN_PARTITION=renzo
+ENV IGNITION_VERSION=fortress
+ENV IGN_VERBOSE=1
 
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
   apt-get update \
   && apt-get install -y -q --no-install-recommends\
+  openssh-server \
   cmake \
   curl \
+  wget \
   python3-pip \
   nano \ 
-  gnupg \
+  gnupg2 \
   gdb \
+  git \
   sudo \
+  clang \
   clang-tidy \
   build-essential \
+  dirmngr \
   && pip install -U autopep8 \
   && rm -rf /var/lib/apt/lists/*
 
 ENV CMAKE_MAKE_PROGRAM=/usr/bin/make
-ENV CMAKE_CXX_COMPILER=/usr/bin/g++
+ENV CMAKE_CXX_COMPILER=/usr/bin/clang
 ENV RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+
+RUN sudo sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list' && \
+wget http://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add - && \
+sudo apt-get update -y && \
+sudo apt-get install libignition-gazebo6-dev -y
 
 # MAKE THE DEVELOPER VERSION OF THE IMAGE
 FROM dependencies_setter as developer
@@ -33,9 +46,10 @@ FROM dependencies_setter as developer
 # Set timezone
 ENV TZ=Europe/Copenhagen 
 
-
+# Set dds vendor environment variable
 ENV RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 
+# Set access control
 ARG USERNAME=rnz
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
@@ -47,7 +61,7 @@ RUN groupadd --gid $USER_GID $USERNAME \
   && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
   && chmod 0440 /etc/sudoers.d/$USERNAME
 
-
+# Set main directory for start-up
 WORKDIR /home/$USERNAME
 
 USER $USERNAME
@@ -60,9 +74,14 @@ ARG OVERLAY_WS
 # MULTI-STAGE FOR CACHING
 FROM dependencies_setter AS cacher
 
+# copy sdf files
+COPY ./ignition_models /app
+
 # copy overlay source   
 ARG OVERLAY_WS
-WORKDIR $OVERLAY_WS/src
+WORKDIR $OVERLAY_WS/
+
+# CMD ["tail", "-f", "/dev/null"]
 
 # MULTI-STAGE FOR BUILDING DEPENDENCIES FROM SOURCE
 FROM dependencies_setter AS prebuilder
@@ -96,38 +115,23 @@ RUN apt update \
 
 
 COPY --from=prebuilder $OVERLAY_WS/ ./
-COPY ./project_folder ./src/project_folder
 RUN rm -rf ./src/project_folder/build
 
-
-RUN mkdir $OVERLAY_WS/src/project_folder/build 
-RUN cd $OVERLAY_WS/src/project_folder/build && cmake .. && make
-
-CMD ["tail", "-f", "/dev/null"]
-
-# RUN ALL TESTS IN GTEST
-FROM builder AS tester
-
-ARG OVERLAY_WS
-RUN cd $OVERLAY_WS/src/project_folder/build && ctest
-
-WORKDIR $OVERLAY_WS/src/project_folder
-# COPY ./run_tests.sh $OVERLAY_WS
-# CMD ["./run_tests.sh"]
-CMD ["tail", "-f", "/dev/null"]
 
 # MULTI-STAGE FOR RUNNING   
 FROM dependencies_setter AS runner
 
+COPY --from=cacher $OVERLAY_WS/ ./
+
+ENV IGN_RESOURCE_PATH=$OVERLAY_WS
+
 ARG OVERLAY_WS
 WORKDIR $OVERLAY_WS
-# THIS SHOULD BE CHANGED FOR A INSTALLED FOLDER!!!!!!!!
-COPY --from=builder $OVERLAY_WS/src/project_folder $OVERLAY_WS/src/project_folder
-# RUN rm -rf $(find . -type d -name include)
 
-ENV OVERLAY_WS $OVERLAY_WS
+# Run the ignition server with the correct sdf
+ENTRYPOINT [ "ign" ]
+CMD ["gazebo", "-sr" ,"/app/worlds/skuid_world_origin-server.sdf"]
 
-# RUN A APP FILE
-COPY entrypoint.sh /entrypoint.sh 
-RUN chmod -x /entrypoint.sh
-ENTRYPOINT ["tail", "-f", "/dev/null"]
+# CMD [ "tail", "-f", "/dev/null" ]
+####################################################################
+
