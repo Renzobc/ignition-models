@@ -1,5 +1,5 @@
 ARG UBUNTU_VERSION=jammy
-ARG ROS_VERSION=humble-ros-core
+ARG ROS_VERSION=humble
 ARG FROM_IMAGE=ros:$ROS_VERSION
 ARG OVERLAY_WS=/app
 
@@ -7,7 +7,7 @@ ARG OVERLAY_WS=/app
 FROM $FROM_IMAGE AS dependencies_setter
 
 # Set ignition variable for simulation
-ENV IGN_PARTITION=renzo
+ENV IGN_PARTITION=renzobc
 ENV IGNITION_VERSION=fortress
 ENV IGN_VERBOSE=1
 
@@ -15,6 +15,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone &
   apt-get update \
   && apt-get install -y -q --no-install-recommends\
   openssh-server \
+  x11-apps \ 
   cmake \
   curl \
   wget \
@@ -22,6 +23,13 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone &
   nano \ 
   gnupg2 \
   gdb \
+  xcb \
+  libqt5gui5 \
+  libqt5core5a \
+  libqt5widgets5 \
+  wayland-protocols \
+  libwayland-client0 \
+  libwayland-server0 \
   git \
   sudo \
   clang \
@@ -50,7 +58,7 @@ ENV TZ=Europe/Copenhagen
 ENV RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 
 # Set access control
-ARG USERNAME=rnz
+ARG USERNAME=renzobc
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
@@ -75,7 +83,7 @@ ARG OVERLAY_WS
 FROM dependencies_setter AS cacher
 
 # copy sdf files
-COPY ./ignition_models /app
+COPY ./models /app
 
 # copy overlay source   
 ARG OVERLAY_WS
@@ -129,9 +137,9 @@ ARG OVERLAY_WS
 WORKDIR $OVERLAY_WS
 
 # Run the ignition server with the correct sdf
-ENTRYPOINT [ "ign" ]
-CMD ["gazebo", "-sr" ,"/app/worlds/skuid_world_origin-server.sdf"]
+# ENTRYPOINT [ "ign" ]
+# CMD ["gazebo", "-sr" ,"/app/worlds/skuid_world_origin-server.sdf"]
 
-# CMD [ "tail", "-f", "/dev/null" ]
+CMD [ "tail", "-f", "/dev/null" ]
 ####################################################################
 
