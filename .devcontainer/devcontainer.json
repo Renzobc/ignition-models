@@ -1,0 +1,52 @@
+{
+	"dockerFile": "../Dockerfile",
+	"build": {
+		"args": {
+			"WORKSPACE": "${containerWorkspaceFolder}"
+		},
+		"target": "developer"
+	},
+	// "remoteUser": "renzobc",
+	"runArgs": [
+		"--name=ignition",
+		"--network=bridge",
+		"--privileged",
+		"--pid=host",
+		"--ipc=host",
+		"--volume=/dev/shm:/dev/shm",
+		"--cap-add=SYS_PTRACE",
+		"--security-opt=seccomp:unconfined",
+		"--security-opt=apparmor:unconfined",
+		"--volume=/tmp/.X11-unix:/tmp/.X11-unix",
+		"--volume=/run/user/1000/.mutter-Xwaylandauth.UOZ071:/run/user/1000/.mutter-Xwaylandauth.UOZ071",
+],
+	"containerEnv": {
+		"DISPLAY": "${localEnv:DISPLAY}",
+		"XAUTHORITY":"/run/user/1000/.mutter-Xwaylandauth.UOZ071",
+		"QT_X11_NO_MITSHM":1
+	},
+	// Set *default* container specific settings.json values on container create.
+	"settings": {
+		"terminal.integrated.profiles.linux": {
+			"bash": {
+				"path": "bash"
+			},
+		},
+		"terminal.integrated.defaultProfile.linux": "bash"
+	},
+	"extensions": [
+		"dotjoshjohnson.xml",
+		"zachflower.uncrustify",
+		"ms-azuretools.vscode-docker",
+		"ms-python.python",
+		"ms-python.vscode-pylance",
+		"ms-vscode.cpptools",
+		"redhat.vscode-yaml",
+		"twxs.cmake",
+		"yzhang.markdown-all-in-one",
+		"gruntfuggly.todo-tree",
+		"ymotongpoo.licenser",
+		"himanoa.Python-autopep8",
+		"cschlosser.doxdocgen"
+	]
+}

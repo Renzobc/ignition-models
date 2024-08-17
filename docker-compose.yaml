@@ -1,0 +1,15 @@
+services:
+  image-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    network_mode: bridge
+    container_name: ignition
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /run/user/1000/.mutter-Xwaylandauth.UOZ071:/run/user/1000/.mutter-Xwaylandauth.UOZ071
+    environment:
+      - DISPLAY=$DISPLAY
+      - XAUTHORITY=/run/user/1000/.mutter-Xwaylandauth.UOZ071
+      - QT_X11_NO_MITSHM= 1
